@@ -1,0 +1,344 @@
+@-webkit-keyframes animBirdWings {
+  from { background-position: 0px 0px; }
+  to { background-position: 0px -96px; }
+}
+@-moz-keyframes animBirdWings {
+  from { background-position: 0px 0px; }
+  to { background-position: 0px -96px; }
+}
+@-o-keyframes animBirdWings {
+  from { background-position: 0px 0px; }
+  to { background-position: 0px -96px; }
+}
+@keyframes animBirdWings {
+  from { background-position: 0px 0px; }
+  to { background-position: 0px -96px; }
+}
+.bird-flapping-wings {
+  -webkit-animation: animBirdWings 300ms steps(4) infinite;
+  animation: animBirdWings 300ms steps(4) infinite;
+}
+
+body {
+  padding: 0;
+  margin: 0;
+}
+
+#game-container {
+  position: relative;
+  margin: 0 auto;
+  width: 1028px;
+  height: 545px;
+}
+
+#bg-canvas {
+  position: absolute;
+  left: 0;
+  width: 828px;
+  height: 545px;
+  background: transparent;
+}
+
+#pipe-canvas {
+  position: absolute;
+  left: 0;
+  top: 16px;
+  width: 828px;
+  height: 417px;
+  background: transparent;
+}
+
+#birds-canvas {
+  position: absolute;
+  left: 0;
+  width: 828px;
+  height: 417px;
+  background: transparent;
+}
+
+#spectator-controls {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 828px;
+  height: 545px;
+  display: none;
+}
+
+.panning_buttons {
+  cursor: pointer;
+}
+
+#pan_left_button {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0.3;
+  background-color: white;
+  height: 100%;
+  width: 50px;
+}
+
+#pan_left_button:hover {
+  opacity: 0.2;
+}
+
+#pan_right_button {
+  position: absolute;
+  left: 778px;
+  top: 0;
+  background-color: white;
+  opacity: 0.3;
+  height: 100%;
+  width: 50px;
+}
+
+#pan_right_button:hover {
+  opacity: 0.2;
+}
+
+#pan_left_button_img {
+  position: absolute;
+  width: 20px;
+  top: 42%;
+  left: 12px;
+}
+
+#pan_right_button_img {
+  position: absolute;
+  width: 20px;
+  top: 42%;
+  left: 796px;
+}
+
+#client-screen {
+  position: absolute;
+  right: 0;
+  width: 200px;
+  height: 545px;
+  background-color: #ddd;
+  z-index: 12;
+  overflow-y: scroll;
+}
+
+#client-count {
+  color: #444;
+  font-family: Helvetica;
+  padding: 8px;
+  font-size: 14px;
+  background-color: #eee;
+}
+
+#client-screen ul {
+  font-family: "Lato";
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
+#client-screen li {
+  height: 47px;
+  margin-bottom: 1px;
+  background-color: #f5f5f5;
+}
+
+.client-color {
+  display: inline-block;
+  width: 4%;
+  height: 47px;
+  background-color: #15CF00;
+}
+
+.client-text {
+  display: inline-block;
+  width: 88%;
+  height: 37px;
+  padding: 5px;
+  vertical-align: top;
+}
+
+.client-name {
+  color: #5a5a5a;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.client-status-and-score-parent div {
+  color: #777;
+  font-size: 12px;
+}
+
+.client-status {
+  float:left;
+}
+
+.client-score {
+  float:right;
+}
+
+#loading-blocker {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: white;
+  opacity: 0.2;
+  z-index: 20;
+}
+
+#loading-dialog {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 30%;
+  height: 50px;
+  margin-left: -15%;
+  margin-top: -30px;
+  line-height: 50px;
+  background-color: white;
+  border: solid #999999 5px;
+  border-radius: 16px;
+  text-align: center;
+  font-family: "Lato";
+  color: #222;
+  font-weight: bold;
+  font-size: 22px;
+  opacity: 1.0;
+  z-index: 21;
+}
+
+#loading-dialog > div {
+  display: none;
+}
+
+#loading-input-username input {
+  margin-top: -4px;
+  font-size: 22px;
+  font-weight: bold;
+  font-family: "Lato";
+  width: 53%;
+}
+
+#loading-input-username .error-messages {
+  display: none;
+}
+
+#loading-bird-image {
+  display: inline-block;
+  width: 34px;
+  height: 24px;
+  margin-right: 10px;
+  margin-bottom: -3px;
+  background-image: url('../images/bird.png');
+}
+
+#game-menu-dialogs {
+  display: none;
+}
+
+#game-menu-dialogs > div {
+  position: absolute;
+  width: 20%;
+  background-color: white; 
+  border: solid #999999 5px;
+  border-radius: 16px; 
+  height: 50px;
+  line-height: 50px;
+  font-weight: bold;
+  font-family: 'Lato';
+  font-size: 22px;
+  text-align: center;
+  cursor: pointer;
+  z-index: 100;
+}
+
+#game-menu-play-button {
+  top: 50%;
+  left: 50%;
+  margin-top: -30px;
+  margin-left: -22%;
+}
+
+#game-menu-spectate-button {
+  top: 50%;
+  left: 50%;
+  margin-top: -30px;
+  margin-left: 2%;
+}
+
+#splash {
+   position: absolute;
+   display: none;
+   top: 75px;
+   left: 65px;
+   width: 188px;
+   height: 170px;
+   background-image: url('../images/splash.png');
+   background-repeat: no-repeat;
+}
+
+h1 {
+  color: black;
+  font-family: "Lato", sans-serif;
+  font-size: 60px;
+  margin-top: 30px;
+  font-weight: bold;
+  margin: 14px 22px 6px 22px;
+  text-align: center;
+  color: #111;
+  letter-spacing: 1px;
+}
+
+.title-image {
+  display: inline-block;
+  width: 34px;
+  height: 24px;
+  margin: 0px 5px 3px 5px;
+  background-image: url('../images/bird.png');
+}
+
+.nav-parent {
+  text-align: center;
+  font-family: "Open Sans";
+  color: #222;
+  cursor: default;
+  font-size: 12px;
+}
+
+.nav-parent .nav-button {
+  text-decoration: none;
+  color: #222;
+  cursor: pointer;
+}
+
+.nav-parent .nav-button:hover {
+  color: #555;
+}
+
+#developer-website {
+  color: #2DBBF7;
+  font-weight: bold;
+}
+
+#developer-website:hover {
+  color: #97DAF7;
+}
+
+#about {
+  display: none;
+  color: black;
+  color: #222;
+  font-family: "Open Sans";
+  font-size: 18px;
+  line-height: 25px;
+  width: 1000px;
+  margin: 24px auto 100px auto;
+}
+
+#about a {
+  text-decoration: none;
+}
+
+#about a:hover {
+  color: #555;
+}
