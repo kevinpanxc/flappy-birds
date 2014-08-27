@@ -19,6 +19,7 @@
     <canvas id="birds-canvas" width="828" height="417"></canvas>
     <div id="in-game-display">
       <div id="splash"></div>
+      <div id="back-button" class="in-game-buttons" onclick="Game.back_to_game_menu()">BACK</div>
     </div>
     <div id="spectator-controls">
       <img id="pan_left_button_img" src="images/left_chevron.ico"/>
@@ -41,8 +42,8 @@
       </div>
     </div>
     <div id="game-menu-dialogs">
-      <div id="game-menu-play-button" onclick="Game.play()">PLAY</div>
-      <div id="game-menu-spectate-button" onclick="Game.spectate()">SPECTATE</div>
+      <div id="game-menu-play-button" class="in-game-buttons" onclick="Game.play()">PLAY</div>
+      <div id="game-menu-spectate-button" class="in-game-buttons" onclick="Game.spectate()">SPECTATE</div>
     </div>
   </div>
   <h1><span>flappy</span><div class="title-image"></div><span>bird<span style="color: brown">s</span></span></h1>

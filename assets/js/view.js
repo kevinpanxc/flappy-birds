@@ -1,12 +1,15 @@
 var View = (function () {
     var PLAYING_COLOR = "#15CF00";
     var IDLE_COLOR = "#ABABAB";
+    var SPECTATING_COLOR = "#FFFFFF";
 
     var $loading_input_username;
     var $loading_connecting_message;
     var $loading_input_username_invalid;
 
     var $game_menu_dialog;
+
+    var $back_button;
 
     var $client_list;
     var $client_count;
@@ -81,12 +84,15 @@ var View = (function () {
             if (client.state === 0) {
                 client_node_jquery.find(".client-color").css( "background-color", IDLE_COLOR );
                 client_node_jquery.find(".client-status").html("Idle");
-            } else {
+            } else if (client.state === 1) {
                 client_node_jquery.find(".client-color").css( "background-color", PLAYING_COLOR );
                 client_node_jquery.find(".client-status").html("Playing");
 
                 client_node_jquery.find(".client-score").html(client.score);
                 client_node_jquery.find(".client-score").attr("id", "score-" + client.id);
+            } else if (client.state === 2) {
+                client_node_jquery.find(".client-color").css( "background-color", SPECTATING_COLOR );
+                client_node_jquery.find(".client-status").html("Spectating");
             }
 
             client_node_jquery.find(".client-name").html(client.username);
@@ -106,6 +112,7 @@ var View = (function () {
             $game_menu_dialog = $("#game-menu-dialogs");
             $client_list = $("#client-screen ul");
             $client_count = $("#client-count span");
+            $back_button = $("#back-button");
             cloneable_node = initialize_cloneable_node();
 
             Network.on.client_list_returned(function (data) {
@@ -122,12 +129,15 @@ var View = (function () {
         },
 
         display_game_menu : function () {
+            $back_button.hide();
             $game_menu_dialog.show();
         },
 
         remove_game_menu_dialog_and_loading_blocker : function () {
             $("#loading-blocker").fadeOut("fast");
             $("#game-menu-dialogs").fadeOut("fast");
+
+            $back_button.show();
         },
 
         begin_registration : function (show_error_message) {

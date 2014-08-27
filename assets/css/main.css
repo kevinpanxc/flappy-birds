@@ -51,6 +51,7 @@ body {
 #birds-canvas {
   position: absolute;
   left: 0;
+  top: 16px;
   width: 828px;
   height: 417px;
   background: transparent;
@@ -236,10 +237,9 @@ body {
   display: none;
 }
 
-#game-menu-dialogs > div {
+.in-game-buttons {
   position: absolute;
-  width: 20%;
-  background-color: white; 
+  background-color: white;
   border: solid #999999 5px;
   border-radius: 16px; 
   height: 50px;
@@ -249,6 +249,10 @@ body {
   font-size: 22px;
   text-align: center;
   cursor: pointer;
+}
+
+#game-menu-dialogs > div {
+  width: 20%;
   z-index: 100;
 }
 
@@ -275,6 +279,14 @@ body {
    height: 170px;
    background-image: url('../images/splash.png');
    background-repeat: no-repeat;
+}
+
+#back-button {
+  width: 10%;
+  bottom: 10px;
+  left: 10px;
+  display: none;
+  z-index: 100;
 }
 
 h1 {

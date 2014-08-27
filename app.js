@@ -14,10 +14,12 @@ console.log("Listening on port " + port);
 // custom modules
 var client_module = require("./custom_modules/client_module");
 var pipe_module = require("./custom_modules/pipe_module");
+var game_module = require("./custom_modules/game_module");
 
 // services
 var refresh_client_score_service;
 var refresh_client_temp_service;
+var game_loop_service;
 
 io.sockets.on('connection', function (socket) {
     socket.on('register-request', function (data) {
@@ -36,6 +38,10 @@ io.sockets.on('connection', function (socket) {
         }
     });
 
+    socket.on('jump-request', function (data) {
+        game_module.jump(data);
+    });
+
     socket.on('clients-request', function () {
         socket.emit('client-response', client_module.all);
     });
@@ -44,11 +50,17 @@ io.sockets.on('connection', function (socket) {
         socket.emit('pipes-response', pipe_module.get_pipes(data, data + 19));
     });
 
+    socket.on('update-state-request', function (data) {
+        client_module.all[data.client_id].update_state(data.state);
+    });
+
     refresh_client_list_service = setInterval(function () {
         io.sockets.emit('client-list-response', client_module.all);
     }, 3000);
 
     refresh_client_temp_service = setInterval(function () {
-        io.sockets.emit('clients-game-response', client_module.all);
-    }, 100);
+        io.sockets.emit('clients-game-response', client_module.playing);
+    }, 50);
 });
+
+game_loop_service = setInterval(game_module.game_loop, 50);

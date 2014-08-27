@@ -1,8 +1,11 @@
 var all = {};
 
-var states = Object.freeze({
+var playing = {};
+
+var STATES = Object.freeze({
     IDLE: 0,
-    PLAYING: 1
+    PLAYING: 1,
+    SPECTATING: 2
 });
 
 function Client(username, client_id) {
@@ -10,8 +13,9 @@ function Client(username, client_id) {
     this.username = username;
     this.y = 180;
     this.x = 27; // 60 units in canvas / 2.2
+    this.velocity = 0;
 
-    this.state = states.IDLE;
+    this.state = STATES.IDLE;
 }
 
 Client.prototype.random_string = function(length, chars) {
@@ -23,7 +27,28 @@ Client.prototype.random_string = function(length, chars) {
     var result = '';
     for (var i = length; i > 0; --i) result += mask[Math.round(Math.random() * (mask.length - 1))];
     return result;
-};
+}
+
+Client.prototype.update_state = function (state) {
+    if (state === "IDLE") {
+        this.state = STATES.IDLE;
+        delete playing[this.id];
+    } else if (state === "PLAYING") {
+        this.state = STATES.PLAYING;
+        playing[this.id] = this;
+    } else if (state === "SPECTATING") {
+        this.state = STATES.SPECTATING;
+        delete playing[this.id];
+    }
+
+    this.reset();
+}
+
+Client.prototype.reset = function () {
+    this.y = 180;
+    this.x = 27;
+    this.velocity = 0;
+}
 
 function username_is_valid (username) {
     if (typeof username === 'string'
@@ -50,12 +75,14 @@ module.exports = {
         var client_package = {};
         for (client_id in all) {
             client = all[client_id];
-            if (from_client_id !== client_id && client.state === states.PLAYING) {
+            if (from_client_id !== client_id && client.state === STATES.PLAYING) {
                 client.time_diff = all[from_client_id].start_game_timestamp - client.start_game_timestamp;
                 client_package[client_id] = client;
             }
         }
         return client_package;
     },
-    all : all
+    all : all,
+    playing : playing,
+    STATES : STATES
 }

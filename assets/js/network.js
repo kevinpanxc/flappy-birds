@@ -4,6 +4,8 @@ var Network = (function () {
 
     var REQUEST_REGISTER = 'register-request';
     var REQUEST_NEW_PIPES = 'pipes-request';
+    var REQUEST_UPDATE_STATE = 'update-state-request';
+    var REQUEST_JUMP = 'jump-request';
 
     var RESPONSE_REGISTER_SUCCESS = 'register-success-response';
     var RESPONSE_REGISTER_FAILURE = 'register-failure-response';
@@ -23,6 +25,14 @@ var Network = (function () {
 
             new_pipes : function ( data ) {
                 socket.emit(REQUEST_NEW_PIPES, data);
+            },
+
+            update_state : function ( data ) {
+                socket.emit(REQUEST_UPDATE_STATE, data);
+            },
+
+            jump : function ( data ) {
+                socket.emit(REQUEST_JUMP, data);
             }
         },
 
@@ -45,6 +55,12 @@ var Network = (function () {
 
             client_list_returned_for_game : function (callback) {
                 socket.on(RESPONSE_CLIENTS_FOR_GAME, callback);
+            }
+        },
+
+        remove : {
+            client_list_returned_for_game : function () {
+                socket.removeAllListeners(RESPONSE_CLIENTS_FOR_GAME);
             }
         }
     }
