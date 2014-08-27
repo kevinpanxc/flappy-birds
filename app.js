@@ -60,7 +60,7 @@ io.sockets.on('connection', function (socket) {
 
     refresh_client_temp_service = setInterval(function () {
         io.sockets.emit('clients-game-response', client_module.playing);
-    }, 50);
+    }, 100);
 });
 
-game_loop_service = setInterval(game_module.game_loop, 50);
+game_loop_service = setInterval(game_module.game_loop, 100);

@@ -11,7 +11,7 @@ var Game = (function () {
                 if (client.state === client_module.STATES.PLAYING) {
                     client.velocity += gravity;
                     client.y += client.velocity;
-                    client.x += 1;
+                    client.x += 5;
                     if (client.y > 393) {
                         client.velocity = 0;
                         client.y = 393;
