@@ -32,6 +32,11 @@ var Birds = (function () {
 
     var all = {};
 
+    var loop_time_stamp = null;
+
+    var gravity = 0.7; // 1 unit per 100 ms
+    var jump = -3.6;
+
     function draw_single_bird (x, y, primary) {
         if (!primary) context.globalAlpha = 0.7;
         context.drawImage(ImageRepo.bird, 0, 0, 34, 24, x, y, 34, 24);
@@ -43,7 +48,7 @@ var Birds = (function () {
             canvas = document.getElementById('birds-canvas');
             context = canvas.getContext('2d');
             canvas_width = canvas.width;
-            canvas_height = canvas.height;            
+            canvas_height = canvas.height;
         },
 
         draw_bird_frame : function (map_position) {
@@ -57,12 +62,18 @@ var Birds = (function () {
             }
         },
 
+        get_new_map_position_based_on_current_player_position : function () {
+            return all[Game.get_client_id()].x - 27;
+        },
+
         on_click_start_run : function () {
             canvas.onclick = Game.start_run;
         },
 
         on_click_jump : function () {
             canvas.onclick = function () {
+                all[Game.get_client_id()].y_velocity = jump;
+                Game.add_to_jump_history();
                 Network.send.jump(Game.get_client_id());
             }
         },
@@ -73,6 +84,32 @@ var Birds = (function () {
 
         clear : function () {
             context.clearRect(0, 0, canvas_width, canvas_height);
+        },
+
+        initialize_client_bird : function () {
+            all[Game.get_client_id()] = {
+                y : 180,
+                x : 27,
+                y_velocity : 0
+            }
+        },
+
+        update_bird_attributes : function (client_id, x) {
+            all[client_id].x = x;
+        },
+
+        temp : function (delta_t) {
+            all[Game.get_client_id()].y_velocity += ( delta_t / 100 ) * gravity;
+            all[Game.get_client_id()].y += all[Game.get_client_id()].y_velocity;
+            if ( all[Game.get_client_id()].y > ( canvas_height - 24 ) ) all[Game.get_client_id()].y = canvas_height - 24;
+        },
+
+        get_time_stamp : function () {
+            return loop_time_stamp;
+        },
+
+        set_time_stamp : function (time_stamp) {
+            loop_time_stamp = time_stamp;
         }
     }
 })();
@@ -163,6 +200,8 @@ var Background = (function () {
 
     var sec_bg_speed = 0.7;
 
+    var loop_time_stamp = null;
+
     return {
         initialize : function () {
             canvas = document.getElementById('bg-canvas');
@@ -222,6 +261,14 @@ var Background = (function () {
 
         clear : function () {
             context.clearRect(0, 0, canvas_width, canvas_height);
+        },
+
+        get_time_stamp : function () {
+            return loop_time_stamp;
+        },
+
+        set_time_stamp : function (time_stamp) {
+            loop_time_stamp = time_stamp;
         }
     }
 })();
@@ -242,14 +289,21 @@ var Game = (function () {
     var id;
     var state = STATES.IDLE;
 
-    var previous_time_stamp = null;
+    var jump_history = [];
+    var client_requests = [];
+    var current_request_id = -1;
+
+    function client_game_loop () {
+        client_requests.push({ position : map_position + 27, time_stamp : new Date().getTime() });
+        Network.send.request_state({ client_id : id, request_id : client_requests.length - 1 });
+    }
 
     function animate_background_left (time_stamp) {
         if (map_position <= 0) return;
         background_loop_id = window.requestAnimationFrame ( animate_background_left );
-        if (previous_time_stamp == null) previous_time_stamp = time_stamp;
-        var map_position_increment = (time_stamp - previous_time_stamp) / 20;
-        previous_time_stamp = time_stamp;
+        if (Background.get_time_stamp() == null) Background.set_time_stamp(time_stamp);
+        var map_position_increment = (time_stamp - Background.get_time_stamp()) / 20;
+        Background.set_time_stamp(time_stamp);
         if (!isNaN(map_position_increment)) {
             Background.pan_right(map_position_increment);
             map_position -= map_position_increment;
@@ -259,12 +313,13 @@ var Game = (function () {
 
     function animate_background_right (time_stamp) {
         background_loop_id = window.requestAnimationFrame ( animate_background_right );
-        if (previous_time_stamp == null) previous_time_stamp = time_stamp;
-        var map_position_increment = (time_stamp - previous_time_stamp) / 20;
-        previous_time_stamp = time_stamp;
+        if (Background.get_time_stamp() == null) Background.set_time_stamp(time_stamp);
+        var map_position_increment = (time_stamp - Background.get_time_stamp()) / 20;
+        Background.set_time_stamp(time_stamp);
         if (!isNaN(map_position_increment)) {
             Background.pan_left(map_position_increment);
             map_position += map_position_increment;
+            if (state == STATES.PLAYING) Birds.update_bird_attributes ( id, map_position + 27 );
         }
     }
 
@@ -273,8 +328,15 @@ var Game = (function () {
         Pipes.draw_pipe_frame(map_position);
     }
 
-    function animate_birds () {
+    function animate_birds (time_stamp) {
         bird_loop_id = window.requestAnimationFrame ( animate_birds );
+        if (state == STATES.PLAYING) {
+            if (Birds.get_time_stamp() == null) Birds.set_time_stamp(time_stamp);
+            var delta_t = time_stamp - Birds.get_time_stamp();
+            Birds.set_time_stamp(time_stamp);
+            if (!isNaN(delta_t)) Birds.temp(delta_t);
+        }
+        map_position = Birds.get_new_map_position_based_on_current_player_position();
         Birds.draw_bird_frame(map_position);
     }
 
@@ -284,7 +346,6 @@ var Game = (function () {
     }
 
     function move_left () {
-        previous_time_stamp = new Date().getTime();
         stop_background();
         animate_background_left ();
         animate_pipes ();
@@ -301,7 +362,7 @@ var Game = (function () {
         window.cancelAnimationFrame(pipe_loop_id);
         background_loop_id = -1;
         pipe_loop_id = -1;
-        previous_time_stamp = null;
+        Background.set_time_stamp(null);
     }
 
     function setup_panning_buttons () {
@@ -344,6 +405,7 @@ var Game = (function () {
 
             Network.on.register_success(function (data) {
                 id = data.client_id;
+                Birds.initialize_client_bird();
                 Pipes.add_pipes(data.pipes); // add first twenty pipes to Pipes manager
                 View.update_connected_clients_count(Object.keys(data.clients).length);
                 View.update_connected_clients_list(data.clients);
@@ -368,8 +430,20 @@ var Game = (function () {
         play : function () {
             map_position = 0;
             View.remove_game_menu_dialog_and_loading_blocker();
-            Network.on.client_list_returned_for_game(function (data) {
-                Birds.refresh_birds(data);
+            // Network.on.client_list_returned_for_game(function (data) {
+            //     Birds.refresh_birds(data);
+            // });
+            Network.on.response_state(function (data) {
+                if (data.request_id < current_request_id) return;
+                client_requests[data.request_id].position = data.position;
+                current_request_id = data.request_id;
+
+                // for ( var i = 0; i < jump_history.length; i++ ) {
+
+                // }
+
+                var current_time_stamp = new Date().getTime();
+                Birds.update_bird_attributes ( id, data.position + (current_time_stamp - client_requests[data.request_id].time_stamp) / 20 );
             });
             Birds.on_click_start_run();
             display_splash();
@@ -377,8 +451,13 @@ var Game = (function () {
         },
 
         start_run : function () {
+            state = STATES.PLAYING;
             Network.send.update_state({client_id: Game.get_client_id(), state: "PLAYING"});
+            hide_splash();
+            move_right();
             Birds.on_click_jump();
+
+            setInterval(client_game_loop, 500);
         },
 
         get_client_id : function () {
@@ -386,6 +465,8 @@ var Game = (function () {
         },
 
         back_to_game_menu : function () {
+            state = STATES.IDLE;
+
             View.display_game_menu();
             Network.send.update_state({client_id: id, state: 'IDLE'});
 
@@ -393,10 +474,17 @@ var Game = (function () {
             Pipes.clear();
 
             stop_bird_animation();
+            stop_background();
             hide_spectator_controls();
             hide_splash();
 
+            client_requests = [];
+
             Network.remove.client_list_returned_for_game();
+        },
+
+        add_to_jump_history : function () {
+            jump_history.push( new Date().getTime() );
         },
 
         CANVAS_X_TO_MAP_POSITION_SCALE : 2.2

@@ -54,6 +54,11 @@ io.sockets.on('connection', function (socket) {
         client_module.all[data.client_id].update_state(data.state);
     });
 
+    socket.on('state-request', function (data) {
+        var client = client_module.all[data.client_id];
+        socket.emit('state-response', { request_id : data.request_id, position : client.x });
+    });
+
     refresh_client_list_service = setInterval(function () {
         io.sockets.emit('client-list-response', client_module.all);
     }, 3000);
