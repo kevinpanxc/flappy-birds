@@ -56,7 +56,7 @@ io.sockets.on('connection', function (socket) {
 
     socket.on('state-request', function (data) {
         var client = client_module.all[data.client_id];
-        socket.emit('state-response', { request_id : data.request_id, position : client.x });
+        socket.emit('state-response', { request_id : data.request_id, x : client.x, y : client.y, y_velocity : client.y_velocity });
     });
 
     refresh_client_list_service = setInterval(function () {
@@ -68,4 +68,4 @@ io.sockets.on('connection', function (socket) {
     }, 100);
 });
 
-game_loop_service = setInterval(game_module.game_loop, 100);
+game_loop_service = setInterval(game_module.game_loop, 33);

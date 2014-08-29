@@ -136,7 +136,6 @@ var View = (function () {
         remove_game_menu_dialog_and_loading_blocker : function () {
             $("#loading-blocker").fadeOut("fast");
             $("#game-menu-dialogs").fadeOut("fast");
-
             $back_button.show();
         },
 

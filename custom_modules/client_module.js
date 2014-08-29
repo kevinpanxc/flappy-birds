@@ -13,7 +13,7 @@ function Client(username, client_id) {
     this.username = username;
     this.y = 180;
     this.x = 27; // 60 units in canvas / 2.2
-    this.velocity = 0;
+    this.y_velocity = 0;
 
     this.state = STATES.IDLE;
 }
@@ -47,7 +47,7 @@ Client.prototype.update_state = function (state) {
 Client.prototype.reset = function () {
     this.y = 180;
     this.x = 27;
-    this.velocity = 0;
+    this.y_velocity = 0;
 }
 
 function username_is_valid (username) {

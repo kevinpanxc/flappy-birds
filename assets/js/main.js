@@ -1,3 +1,27 @@
+function binary_index_of_next_largest (array, element) {
+    var min_index = 0;
+    var max_index = array.length - 1;
+    var current_index;
+    var current_element;
+ 
+    while (min_index <= max_index) {
+        current_index = (min_index + max_index) / 2 | 0;
+        current_element = array[current_index];
+ 
+        if (current_element < element) {
+            min_index = current_index + 1;
+        }
+        else if (current_element > element) {
+            max_index = current_index - 1;
+        }
+        else {
+            return current_index;
+        }
+    }
+ 
+    return min_index;
+}
+
 var ImageRepo = new function () {
     this.background_sky = new Image(); 
     this.background_sky.src = "images/sky.png";
@@ -33,9 +57,10 @@ var Birds = (function () {
     var all = {};
 
     var loop_time_stamp = null;
+    var accrued_time = 0;
 
     var gravity = 0.7; // 1 unit per 100 ms
-    var jump = -3.6;
+    var jump = -6;
 
     function draw_single_bird (x, y, primary) {
         if (!primary) context.globalAlpha = 0.7;
@@ -98,18 +123,49 @@ var Birds = (function () {
             all[client_id].x = x;
         },
 
-        temp : function (delta_t) {
-            all[Game.get_client_id()].y_velocity += ( delta_t / 100 ) * gravity;
-            all[Game.get_client_id()].y += all[Game.get_client_id()].y_velocity;
-            if ( all[Game.get_client_id()].y > ( canvas_height - 24 ) ) all[Game.get_client_id()].y = canvas_height - 24;
+        synch_with_server : function ( client_id, data, time_stamp_of_data, jump_history ) {
+            var current_time_stamp = new Date().getTime();
+            all[client_id].x = data.x + (current_time_stamp - time_stamp_of_data) / 20;
+            all[client_id].y = data.y;
+            all[client_id].y_velocity = data.y_velocity;
+
+            var delta_t;
+
+            if (jump_history.length == 0) {
+                delta_t = current_time_stamp - time_stamp_of_data;
+                all[client_id].y_velocity += ( delta_t / 100 ) * gravity;
+                all[client_id].y += all[client_id].y_velocity;
+                return;
+            }
+
+            for ( var i = 0; i < jump_history.length + 1; i++ ) { // resynchronize
+                var delta_t;
+                if ( i == jump_history.length ) delta_t = current_time_stamp - jump_history[i - 1];
+                else if (i == 0) delta_t = jump_history[i] - time_stamp_of_data;
+                else delta_t = jump_history[i] - jump_history[i - 1];
+
+                all[client_id].y_velocity += ( delta_t / 100 ) * gravity;
+                all[client_id].y += all[client_id].y_velocity;
+                all[client_id].y_velocity = jump;
+            }
         },
 
-        get_time_stamp : function () {
-            return loop_time_stamp;
-        },
-
-        set_time_stamp : function (time_stamp) {
+        client_prediction_update : function (time_stamp) {
+            if (loop_time_stamp == null) loop_time_stamp = time_stamp;
+            var delta_t = time_stamp - loop_time_stamp;
             loop_time_stamp = time_stamp;
+            if (!isNaN(delta_t)) {
+                accrued_time += delta_t;
+                while (accrued_time >= 33) {
+                    all[Game.get_client_id()].y_velocity += gravity;
+                    all[Game.get_client_id()].y += all[Game.get_client_id()].y_velocity;
+                    if ( all[Game.get_client_id()].y > ( canvas_height - 24 ) ) {
+                        all[Game.get_client_id()].y_velocity = 0;
+                        all[Game.get_client_id()].y = canvas_height - 24;
+                    }
+                    accrued_time -= 33;
+                }
+            }
         }
     }
 })();
@@ -263,12 +319,15 @@ var Background = (function () {
             context.clearRect(0, 0, canvas_width, canvas_height);
         },
 
-        get_time_stamp : function () {
-            return loop_time_stamp;
+        get_map_position_increment : function (time_stamp) {
+            if (loop_time_stamp == null) loop_time_stamp = time_stamp;
+            var map_position_increment = (time_stamp - loop_time_stamp) / 20;
+            loop_time_stamp = time_stamp;
+            return map_position_increment;
         },
 
-        set_time_stamp : function (time_stamp) {
-            loop_time_stamp = time_stamp;
+        reset_time_stamp : function () {
+            loop_time_stamp = null;
         }
     }
 })();
@@ -301,9 +360,7 @@ var Game = (function () {
     function animate_background_left (time_stamp) {
         if (map_position <= 0) return;
         background_loop_id = window.requestAnimationFrame ( animate_background_left );
-        if (Background.get_time_stamp() == null) Background.set_time_stamp(time_stamp);
-        var map_position_increment = (time_stamp - Background.get_time_stamp()) / 20;
-        Background.set_time_stamp(time_stamp);
+        var map_position_increment = Background.get_map_position_increment(time_stamp);
         if (!isNaN(map_position_increment)) {
             Background.pan_right(map_position_increment);
             map_position -= map_position_increment;
@@ -313,9 +370,7 @@ var Game = (function () {
 
     function animate_background_right (time_stamp) {
         background_loop_id = window.requestAnimationFrame ( animate_background_right );
-        if (Background.get_time_stamp() == null) Background.set_time_stamp(time_stamp);
-        var map_position_increment = (time_stamp - Background.get_time_stamp()) / 20;
-        Background.set_time_stamp(time_stamp);
+        var map_position_increment = Background.get_map_position_increment(time_stamp);
         if (!isNaN(map_position_increment)) {
             Background.pan_left(map_position_increment);
             map_position += map_position_increment;
@@ -330,12 +385,7 @@ var Game = (function () {
 
     function animate_birds (time_stamp) {
         bird_loop_id = window.requestAnimationFrame ( animate_birds );
-        if (state == STATES.PLAYING) {
-            if (Birds.get_time_stamp() == null) Birds.set_time_stamp(time_stamp);
-            var delta_t = time_stamp - Birds.get_time_stamp();
-            Birds.set_time_stamp(time_stamp);
-            if (!isNaN(delta_t)) Birds.temp(delta_t);
-        }
+        if (state == STATES.PLAYING) Birds.client_prediction_update(time_stamp);
         map_position = Birds.get_new_map_position_based_on_current_player_position();
         Birds.draw_bird_frame(map_position);
     }
@@ -362,7 +412,7 @@ var Game = (function () {
         window.cancelAnimationFrame(pipe_loop_id);
         background_loop_id = -1;
         pipe_loop_id = -1;
-        Background.set_time_stamp(null);
+        Background.reset_time_stamp();
     }
 
     function setup_panning_buttons () {
@@ -438,12 +488,10 @@ var Game = (function () {
                 client_requests[data.request_id].position = data.position;
                 current_request_id = data.request_id;
 
-                // for ( var i = 0; i < jump_history.length; i++ ) {
+                var index_of_next_jump_time = binary_index_of_next_largest ( jump_history, client_requests[data.request_id].time_stamp );
+                jump_history.splice( 0, index_of_next_jump_time );
 
-                // }
-
-                var current_time_stamp = new Date().getTime();
-                Birds.update_bird_attributes ( id, data.position + (current_time_stamp - client_requests[data.request_id].time_stamp) / 20 );
+                Birds.synch_with_server ( id, data, client_requests[data.request_id].time_stamp, jump_history );
             });
             Birds.on_click_start_run();
             display_splash();
@@ -457,7 +505,7 @@ var Game = (function () {
             move_right();
             Birds.on_click_jump();
 
-            setInterval(client_game_loop, 500);
+            setInterval(client_game_loop, 200);
         },
 
         get_client_id : function () {
@@ -466,20 +514,15 @@ var Game = (function () {
 
         back_to_game_menu : function () {
             state = STATES.IDLE;
-
             View.display_game_menu();
             Network.send.update_state({client_id: id, state: 'IDLE'});
-
             Birds.clear();
             Pipes.clear();
-
             stop_bird_animation();
             stop_background();
             hide_spectator_controls();
             hide_splash();
-
             client_requests = [];
-
             Network.remove.client_list_returned_for_game();
         },
 
