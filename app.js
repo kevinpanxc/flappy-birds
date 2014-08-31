@@ -17,8 +17,6 @@ var pipe_module = require("./custom_modules/pipe_module");
 var game_module = require("./custom_modules/game_module");
 
 // services
-var refresh_client_score_service;
-var refresh_client_temp_service;
 var game_loop_service;
 
 io.sockets.on('connection', function (socket) {
@@ -38,10 +36,6 @@ io.sockets.on('connection', function (socket) {
         }
     });
 
-    socket.on('jump-request', function (data) {
-        game_module.jump(data);
-    });
-
     socket.on('clients-request', function () {
         socket.emit('client-response', client_module.all);
     });
@@ -50,13 +44,34 @@ io.sockets.on('connection', function (socket) {
         socket.emit('pipes-response', pipe_module.get_pipes(data, data + 19));
     });
 
-    socket.on('update-state-request', function (data) {
+    socket.on('update-game-state-request', function (data) {
         client_module.all[data.client_id].update_state(data.state);
     });
 
-    socket.on('state-request', function (data) {
+    socket.on('update-score-request', function (data) {
+        client_module.all[data.client_id].score = data.score;
+        io.sockets.emit('update-score-response', { client_id : data.client_id, score : data.score });
+    });
+
+    socket.on('update-bird-state-request', function (data) {
         var client = client_module.all[data.client_id];
-        socket.emit('state-response', { request_id : data.request_id, x : client.x, y : client.y, y_velocity : client.y_velocity });
+        client.y = data.y;
+        client.y_velocity = data.y_velocity;
+        client.dead = data.dead;
+    });
+
+    socket.on('inc-pipe-counter-request', function (data) {
+        var pipe = pipe_module.get_pipe(data);
+        if (pipe) pipe.death_counter++;
+    });
+
+    socket.on('pipes-death-counter-request', function (data) {
+        socket.emit('pipes-death-counter-response', { pipes : pipe_module.get_pipes(data.start_index, data.end_index), start_index : data.start_index });
+    });
+
+    socket.on('sync-request', function (data) {
+        var client = client_module.all[data.client_id];
+        socket.emit('sync-response', { request_id : data.request_id, x : client.x, y : client.y, y_velocity : client.y_velocity });
     });
 
     refresh_client_list_service = setInterval(function () {

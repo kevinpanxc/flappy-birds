@@ -15,6 +15,14 @@ var View = (function () {
     var $client_count;
     var cloneable_node;
 
+    var $scoreboard;
+    var $medal;
+    var $curret_score;
+    var $high_score;
+    var $reply_button;
+
+    var $big_score;
+
     function show_connecting_message () {
         $loading_connecting_message.show();
         $loading_input_username.hide();
@@ -70,7 +78,7 @@ var View = (function () {
         return parent;
     }
 
-    function update_connected_clients_list (clients) {
+    function update_connected_clients_list (id, clients) {
         var clients_array = $.map(clients, function (value, key) { return value });
 
         clients_array.sort(function (a,b) { return b.state - a.state });
@@ -95,13 +103,49 @@ var View = (function () {
                 client_node_jquery.find(".client-status").html("Spectating");
             }
 
-            client_node_jquery.find(".client-name").html(client.username);
-            $client_list.append(client_node_jquery);
+            if (client.id == id) {
+                client_node_jquery.find(".client-name").html(client.username);
+                client_node_jquery.find(".client-name").css("font-size", "26px");
+                client_node_jquery.css("height", "72px");
+                client_node_jquery.find(".client-color").css("height", "72px");
+                $client_list.prepend(client_node_jquery);
+            } else {
+                client_node_jquery.find(".client-name").html(client.username);
+                $client_list.append(client_node_jquery);
+            }
         }
     }
 
     function update_connected_clients_count (count) {
         $client_count.html(count);
+    }
+
+    function display_end_game_score_board () {
+        if ($scoreboard.css('display') == 'none') {
+            $big_score.empty();
+            $back_button.hide();
+            $scoreboard.show();
+            $scoreboard.css({ top: '104px', opacity: 0 });
+            $replay.css({ top: '245px', opacity: 0 });
+            $scoreboard.animate({ top: '64px', opacity: 1 }, 600, 'swing', function () {
+                $replay.animate({ top: '205px', opacity: 1 }, 600, 'swing');
+            });
+        }
+    }
+
+    function hide_score_board (callback) {
+        $scoreboard.animate({ top: '104px', opacity: 0 }, 600, 'swing', function () {
+            $scoreboard.hide();
+            callback();
+            $back_button.show();
+        });
+    }
+
+    function display_big_score (score) {
+        $big_score.empty();
+        score = score.toString();
+        for (var i = 0; i < score.length; i++)
+            $big_score.append("<img src='images/font_big_" + score.charAt(i) + ".png' alt='" + score.charAt(i) + "'>");
     }
 
     return {
@@ -114,17 +158,17 @@ var View = (function () {
             $client_count = $("#client-count span");
             $back_button = $("#back-button");
             cloneable_node = initialize_cloneable_node();
-
-            Network.on.client_list_returned(function (data) {
-                update_connected_clients_count(Object.keys(data).length);
-                update_connected_clients_list(data);
-            });
+            $scoreboard = $("#scoreboard");
+            $medal = $("#medal");
+            $current_score = $("#current-score");
+            $high_score = $("#high-score");
+            $replay = $("#replay");
+            $big_score = $("#big-score");
         },
 
         remove_loading_dialog : function () {
             $loading_connecting_message.hide();
             $loading_input_username.hide();
-
             $(".loading").fadeOut("fast");            
         },
 
@@ -142,14 +186,22 @@ var View = (function () {
         begin_registration : function (show_error_message) {
             $loading_connecting_message.hide();
             $loading_input_username.show();
-
             if (show_error_message === true) $loading_input_username_invalid.show();
-
             enable_character_username_submission();
         },
 
         update_connected_clients_count : update_connected_clients_count,
 
         update_connected_clients_list : update_connected_clients_list,
+
+        display_end_game_score_board : display_end_game_score_board,
+
+        hide_score_board : hide_score_board,
+
+        display_big_score : display_big_score,
+
+        update_score_of_player : function (id, score) {
+            $("#score-" + id).html(score);
+        }
     }
 })();

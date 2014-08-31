@@ -14,7 +14,8 @@ function Client(username, client_id) {
     this.y = 180;
     this.x = 27; // 60 units in canvas / 2.2
     this.y_velocity = 0;
-
+    this.dead = false;
+    this.score = 0;
     this.state = STATES.IDLE;
 }
 
@@ -48,6 +49,8 @@ Client.prototype.reset = function () {
     this.y = 180;
     this.x = 27;
     this.y_velocity = 0;
+    this.dead = false;
+    this.score = 0;
 }
 
 function username_is_valid (username) {
@@ -70,17 +73,6 @@ module.exports = {
         } else {
             return false;
         }
-    },
-    generate_client_package : function (from_client_id) {
-        var client_package = {};
-        for (client_id in all) {
-            client = all[client_id];
-            if (from_client_id !== client_id && client.state === STATES.PLAYING) {
-                client.time_diff = all[from_client_id].start_game_timestamp - client.start_game_timestamp;
-                client_package[client_id] = client;
-            }
-        }
-        return client_package;
     },
     all : all,
     playing : playing,

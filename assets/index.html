@@ -15,11 +15,18 @@
 <body onload="Network.initialize(); View.initialize(); Game.initialize()">
   <div id="game-container">
     <canvas id="bg-canvas" width="828" height="545"></canvas>
-    <canvas id="pipe-canvas" width="828" height="417"></canvas>
+    <canvas id="pipes-canvas" width="828" height="417"></canvas>
     <canvas id="birds-canvas" width="828" height="417"></canvas>
     <div id="in-game-display">
       <div id="splash"></div>
       <div id="back-button" class="in-game-buttons" onclick="Game.back_to_game_menu()">BACK</div>
+      <div id="big-score"></div>
+      <div id="scoreboard">
+         <div id="medal"></div>
+         <div id="current-score"></div>
+         <div id="high-score"></div>
+         <div id="replay"><img src="images/replay.png" onclick="Game.back_to_game_start_screen()" alt="replay"></div>
+      </div>
     </div>
     <div id="spectator-controls">
       <img id="pan_left_button_img" src="images/left_chevron.ico"/>

@@ -1,27 +1,3 @@
-function binary_index_of_next_largest (array, element) {
-    var min_index = 0;
-    var max_index = array.length - 1;
-    var current_index;
-    var current_element;
- 
-    while (min_index <= max_index) {
-        current_index = (min_index + max_index) / 2 | 0;
-        current_element = array[current_index];
- 
-        if (current_element < element) {
-            min_index = current_index + 1;
-        }
-        else if (current_element > element) {
-            max_index = current_index - 1;
-        }
-        else {
-            return current_index;
-        }
-    }
- 
-    return min_index;
-}
-
 var ImageRepo = new function () {
     this.background_sky = new Image(); 
     this.background_sky.src = "images/sky.png";
@@ -53,19 +29,22 @@ var Birds = (function () {
     var context;
     var canvas_width;
     var canvas_height;
-
-    var all = {};
-
+    var main_player;
+    var other_players = {};
     var loop_time_stamp = null;
     var accrued_time = 0;
 
-    var gravity = 0.7; // 1 unit per 100 ms
+    var gravity = 0.5;
     var jump = -6;
 
     function draw_single_bird (x, y, primary) {
         if (!primary) context.globalAlpha = 0.7;
         context.drawImage(ImageRepo.bird, 0, 0, 34, 24, x, y, 34, 24);
         context.globalAlpha = 1.0;
+    }
+
+    function is_on_ground () {
+        return main_player.y >= canvas_height - 24;
     }
 
     return {
@@ -78,17 +57,89 @@ var Birds = (function () {
 
         draw_bird_frame : function (map_position) {
             context.clearRect(0, 0, canvas_width, canvas_height);
-            for (var client_id in all) {
-                var client = all[client_id];
+            var canvas_x = ( main_player.x - map_position ) * Game.CANVAS_X_TO_MAP_POSITION_SCALE;
+            var canvas_y = main_player.y;
+            draw_single_bird (canvas_x, canvas_y, true);
+            for (var client_id in other_players) {
+                if (client_id == Game.get_client_id()) continue;
+                var client = other_players[client_id];
                 if (client.x < map_position || client.x > map_position + 400 ) continue;
                 var canvas_x = ( client.x - map_position ) * Game.CANVAS_X_TO_MAP_POSITION_SCALE;
                 var canvas_y = client.y;
-                draw_single_bird (canvas_x, canvas_y, Game.get_client_id() == client_id);
+                draw_single_bird (canvas_x, canvas_y, false);
             }
         },
 
-        get_new_map_position_based_on_current_player_position : function () {
-            return all[Game.get_client_id()].x - 27;
+        main : {
+            initialize : function (client_id) {
+                main_player = {
+                    id : client_id,
+                    y : 180,
+                    x : 27,
+                    score : 0,
+                    y_velocity : jump,
+                    going_through_pipe : false,
+                    dead : false
+                }
+            },
+
+            get_new_map_position_based_on_current_position : function () {
+                return main_player.x - 27;
+            },
+
+            get : function () {
+                return main_player;
+            },
+
+            sync_x_with_server : function ( x, time_stamp_of_data ) {
+                var current_time_stamp = new Date().getTime();
+                main_player.x = x + (current_time_stamp - time_stamp_of_data) / 20;
+            },
+
+            update_y_position : function (time_stamp) {
+                if (loop_time_stamp == null) loop_time_stamp = time_stamp;
+                var delta_t = time_stamp - loop_time_stamp;
+                loop_time_stamp = time_stamp;
+                if (!isNaN(delta_t)) {
+                    accrued_time += delta_t;
+                    while (accrued_time >= 33) {
+                        main_player.y_velocity += gravity;
+                        main_player.y += main_player.y_velocity;
+                        if ( main_player.y > ( canvas_height - 24 ) ) {
+                            main_player.y_velocity = 0;
+                            main_player.y = canvas_height - 24;
+                        } else if ( main_player.y < 0 ) {
+                            main_player.y_velocity = 0;
+                            main_player.y = 0;
+                        }
+                        accrued_time -= 33;
+                    }
+                }
+            },
+
+            still_alive : function (pipe) {
+                if (is_on_ground()) {
+                    main_player.dead = true;
+                    return false;
+                }
+                if (pipe == false) {
+                    if (main_player.going_through_pipe) {
+                        View.display_big_score(++main_player.score);
+                        main_player.going_through_pipe = false;
+                        Network.send.update_score({ client_id : main_player.id, score: main_player.score });
+                    }
+                    return true;
+                } else if (main_player.y <= pipe.top_height || main_player.y + 24 >= pipe.top_height + 90) {
+                    main_player.dead = true;
+                    return false;
+                } else {
+                    main_player.going_through_pipe = true;
+                }
+
+                return true;
+            },
+
+            is_on_ground : is_on_ground
         },
 
         on_click_start_run : function () {
@@ -97,75 +148,26 @@ var Birds = (function () {
 
         on_click_jump : function () {
             canvas.onclick = function () {
-                all[Game.get_client_id()].y_velocity = jump;
-                Game.add_to_jump_history();
-                Network.send.jump(Game.get_client_id());
+                main_player.y_velocity = jump;
+                main_player.y += main_player.y_velocity;
             }
+        },
+
+        on_click_clear : function () {
+            canvas.onclick = function () {};
         },
 
         refresh_birds : function (birds) {
-            all = birds;
+            other_players = birds;
         },
 
         clear : function () {
+            other_players = {};
             context.clearRect(0, 0, canvas_width, canvas_height);
         },
 
-        initialize_client_bird : function () {
-            all[Game.get_client_id()] = {
-                y : 180,
-                x : 27,
-                y_velocity : 0
-            }
-        },
-
-        update_bird_attributes : function (client_id, x) {
-            all[client_id].x = x;
-        },
-
-        synch_with_server : function ( client_id, data, time_stamp_of_data, jump_history ) {
-            var current_time_stamp = new Date().getTime();
-            all[client_id].x = data.x + (current_time_stamp - time_stamp_of_data) / 20;
-            all[client_id].y = data.y;
-            all[client_id].y_velocity = data.y_velocity;
-
-            var delta_t;
-
-            if (jump_history.length == 0) {
-                delta_t = current_time_stamp - time_stamp_of_data;
-                all[client_id].y_velocity += ( delta_t / 100 ) * gravity;
-                all[client_id].y += all[client_id].y_velocity;
-                return;
-            }
-
-            for ( var i = 0; i < jump_history.length + 1; i++ ) { // resynchronize
-                var delta_t;
-                if ( i == jump_history.length ) delta_t = current_time_stamp - jump_history[i - 1];
-                else if (i == 0) delta_t = jump_history[i] - time_stamp_of_data;
-                else delta_t = jump_history[i] - jump_history[i - 1];
-
-                all[client_id].y_velocity += ( delta_t / 100 ) * gravity;
-                all[client_id].y += all[client_id].y_velocity;
-                all[client_id].y_velocity = jump;
-            }
-        },
-
-        client_prediction_update : function (time_stamp) {
-            if (loop_time_stamp == null) loop_time_stamp = time_stamp;
-            var delta_t = time_stamp - loop_time_stamp;
-            loop_time_stamp = time_stamp;
-            if (!isNaN(delta_t)) {
-                accrued_time += delta_t;
-                while (accrued_time >= 33) {
-                    all[Game.get_client_id()].y_velocity += gravity;
-                    all[Game.get_client_id()].y += all[Game.get_client_id()].y_velocity;
-                    if ( all[Game.get_client_id()].y > ( canvas_height - 24 ) ) {
-                        all[Game.get_client_id()].y_velocity = 0;
-                        all[Game.get_client_id()].y = canvas_height - 24;
-                    }
-                    accrued_time -= 33;
-                }
-            }
+        reset_time_stamp : function () {
+            loop_time_stamp = null;
         }
     }
 })();
@@ -176,22 +178,23 @@ var Pipes = (function () {
     var canvas_width;
     var canvas_height;
 
-    var pipe_width = 52;
+    var pipe_width = 52; // in canvas pixels
     var pipe_head_height = 26;
 
     var all = [];
 
-    var first_pipe_position = 450;
-    var distance_between_pipes = 86; // start of one pipe to start of next pipe
+    var first_pipe_position = 450; // map position units
+    var distance_between_pipes = 86; // start of one pipe to start of next pipe in map position units
 
     var pipe_request_sent = false;
 
-    function draw_single_pipe (x, top_height, bottom_height, i) {
-        context.drawImage(ImageRepo.pipe_down, x, top_height - pipe_head_height);
-        context.drawImage(ImageRepo.pipe_long, x, 0, pipe_width, top_height - pipe_head_height);
-        var bottom_pipe_height = top_height + 90 + pipe_head_height;
-        context.drawImage(ImageRepo.pipe_up, x, top_height + 90);
+    function draw_single_pipe (x, pipe) {
+        context.drawImage(ImageRepo.pipe_down, x, pipe.top_height - pipe_head_height);
+        context.drawImage(ImageRepo.pipe_long, x, 0, pipe_width, pipe.top_height - pipe_head_height);
+        var bottom_pipe_height = pipe.top_height + 90 + pipe_head_height;
+        context.drawImage(ImageRepo.pipe_up, x, pipe.top_height + 90);
         context.drawImage(ImageRepo.pipe_long, x, bottom_pipe_height, pipe_width, canvas_height - bottom_pipe_height);
+        context.fillText(pipe.death_counter, x + pipe_width + 2, 18);
     }
 
     function add_pipes (pipes) {
@@ -200,15 +203,31 @@ var Pipes = (function () {
 
     return {
         initialize : function () {
-            canvas = document.getElementById('pipe-canvas');
+            canvas = document.getElementById('pipes-canvas');
             context = canvas.getContext('2d');
             canvas_width = canvas.width;
             canvas_height = canvas.height;
+            context.fillStyle = "white";
+            context.font="18px Open Sans";
 
             Network.on.pipes_returned(function (data) {
                 pipe_request_sent = false;
                 add_pipes(data);
             });
+
+            Network.on.response_pipes_death_counter(function (data) {
+                var start_index = data.start_index;
+                for (var i = 0; i < data.pipes.length; i++) {
+                    all[start_index++].death_counter = data.pipes[i].death_counter;
+                }
+            });
+        },
+
+        update_display_pipes_death_counters : function (map_position) {
+            var first_pipe_to_draw_index = Math.floor(( map_position - first_pipe_position ) / distance_between_pipes );
+            if (first_pipe_to_draw_index < 0) first_pipe_to_draw_index = 0;
+
+            Network.send.request_pipes_death_counter( { start_index : first_pipe_to_draw_index, end_index : first_pipe_to_draw_index + 6 } );
         },
 
         draw_pipe_frame : function (map_position) {
@@ -225,7 +244,7 @@ var Pipes = (function () {
                 var actual_position_of_pipe = first_pipe_position + (i * distance_between_pipes);
                 var x = (actual_position_of_pipe - map_position) * Game.CANVAS_X_TO_MAP_POSITION_SCALE;
 
-                draw_single_pipe(x, all[i].top_height, all[i].bottom_height, i);
+                draw_single_pipe(x, all[i]);
             }
         },
 
@@ -233,6 +252,23 @@ var Pipes = (function () {
 
         current_pipe_count : function () {
             return all.length;
+        },
+
+        get_possible_colliding_pipe : function (map_position) {
+            var left_edge_of_bird = map_position + 27;
+            var right_edge_of_bird = left_edge_of_bird + 34 / Game.CANVAS_X_TO_MAP_POSITION_SCALE;
+            var left_edge_ignoring_first_pipe_pos = left_edge_of_bird - first_pipe_position;
+            var right_edge_ignoring_first_pipe_pos = right_edge_of_bird - first_pipe_position;
+
+            if (right_edge_ignoring_first_pipe_pos < 0) return { pipe : false };
+            else if ( (right_edge_ignoring_first_pipe_pos % distance_between_pipes) < (pipe_width / Game.CANVAS_X_TO_MAP_POSITION_SCALE) ) {
+                var index = Math.floor(right_edge_ignoring_first_pipe_pos / distance_between_pipes);
+                return { pipe : all[index], i : index };
+            } else if ( (left_edge_ignoring_first_pipe_pos % distance_between_pipes) < (pipe_width / Game.CANVAS_X_TO_MAP_POSITION_SCALE) ) {
+                var index = Math.floor(left_edge_ignoring_first_pipe_pos / distance_between_pipes);
+                return { pipe : all[index], i : index };
+            }
+            return { pipe : false };
         },
 
         clear : function () {
@@ -339,22 +375,25 @@ var Game = (function () {
         SPECTATING: 2
     });
 
-    var background_loop_id;
-    var pipe_loop_id;
-    var bird_loop_id;
+    var background_loop_id = -1;
+    var pipe_loop_id = -1;
+    var bird_loop_id = -1;
+    var server_sync_loop_id = -1;
+    var update_pipe_death_counter_loop_id = -1;
+
     var pan_right_button;
     var pan_left_button;
-    var map_position = 0.0;
-    var id;
+    var map_position = 0;
+    var id = null;
     var state = STATES.IDLE;
 
-    var jump_history = [];
     var client_requests = [];
     var current_request_id = -1;
 
-    function client_game_loop () {
+    function server_sync_loop () {
         client_requests.push({ position : map_position + 27, time_stamp : new Date().getTime() });
-        Network.send.request_state({ client_id : id, request_id : client_requests.length - 1 });
+        Network.send.request_sync_x({ client_id : id, request_id : client_requests.length - 1 });
+        Network.send.update_bird_state({ client_id : id, y : Birds.main.get().y, y_velocity : Birds.main.get().y_velocity, dead : Birds.main.get().dead });
     }
 
     function animate_background_left (time_stamp) {
@@ -374,7 +413,7 @@ var Game = (function () {
         if (!isNaN(map_position_increment)) {
             Background.pan_left(map_position_increment);
             map_position += map_position_increment;
-            if (state == STATES.PLAYING) Birds.update_bird_attributes ( id, map_position + 27 );
+            if (state == STATES.PLAYING) Birds.main.get().x = map_position + 27;
         }
     }
 
@@ -385,9 +424,27 @@ var Game = (function () {
 
     function animate_birds (time_stamp) {
         bird_loop_id = window.requestAnimationFrame ( animate_birds );
-        if (state == STATES.PLAYING) Birds.client_prediction_update(time_stamp);
-        map_position = Birds.get_new_map_position_based_on_current_player_position();
+        if (state == STATES.PLAYING) {
+            Birds.main.update_y_position(time_stamp);
+            map_position = Birds.main.get_new_map_position_based_on_current_position();
+        }
         Birds.draw_bird_frame(map_position);
+        if (state == STATES.PLAYING) {
+            if (!Birds.main.get().dead) {
+                var pipe_object = Pipes.get_possible_colliding_pipe(map_position);
+                if (!Birds.main.still_alive(pipe_object.pipe)) {
+                    Birds.on_click_clear();
+                    stop_background();
+                    if (pipe_object.pipe) {
+                        pipe_object.pipe.death_counter++;
+                        Pipes.draw_pipe_frame(map_position); // update pipe death counter immediately
+                        Network.send.increment_pipe_death_counter(pipe_object.i);
+                    }
+                }
+            } else if (Birds.main.is_on_ground()) {
+                View.display_end_game_score_board();
+            }
+        }
     }
 
     function stop_bird_animation () {
@@ -444,21 +501,17 @@ var Game = (function () {
         initialize : function () {
             pan_right_button = document.getElementById('pan_right_button');
             pan_left_button = document.getElementById('pan_left_button');
-            
             setup_panning_buttons()
-
             Background.initialize();
             Birds.initialize();
             Pipes.initialize();
-
             Background.draw();
-
             Network.on.register_success(function (data) {
                 id = data.client_id;
-                Birds.initialize_client_bird();
+                Birds.main.initialize(id);
                 Pipes.add_pipes(data.pipes); // add first twenty pipes to Pipes manager
                 View.update_connected_clients_count(Object.keys(data.clients).length);
-                View.update_connected_clients_list(data.clients);
+                View.update_connected_clients_list(id, data.clients);
                 View.remove_loading_dialog();
                 View.display_game_menu();
             });
@@ -467,31 +520,45 @@ var Game = (function () {
                 View.begin_registration(true);
             });
 
+            Network.on.client_list_returned(function (data) {
+                View.update_connected_clients_count(Object.keys(data).length);
+                View.update_connected_clients_list(id, data);
+            });
+
+            Network.on.response_update_score(function (data) {
+                View.update_score_of_player(data.client_id, data.score);
+            });
+
             View.begin_registration(false);
         },
 
         spectate : function () {
+            state = STATES.SPECTATING;
             map_position = 0;
             View.remove_game_menu_dialog_and_loading_blocker();
             display_spectator_controls();
-            Network.send.update_state({client_id: id, state: 'SPECTATING'});
+            Network.send.update_game_state({client_id: id, state: 'SPECTATING'});
+            Network.on.client_list_returned_for_game(function (data) {
+                Birds.refresh_birds(data);
+            });
+            animate_birds();
+            update_pipe_death_counter_loop_id = setInterval(function () {
+                Pipes.update_display_pipes_death_counters(map_position);
+                Pipes.draw_pipe_frame(map_position);
+            }, 1000);
         },
 
         play : function () {
             map_position = 0;
+            Birds.main.initialize(id);
             View.remove_game_menu_dialog_and_loading_blocker();
-            // Network.on.client_list_returned_for_game(function (data) {
-            //     Birds.refresh_birds(data);
-            // });
-            Network.on.response_state(function (data) {
-                if (data.request_id < current_request_id) return;
-                client_requests[data.request_id].position = data.position;
+            Network.on.client_list_returned_for_game(function (data) {
+                Birds.refresh_birds(data);
+            });
+            Network.on.response_sync_x(function (data) {
+                if (data.request_id <= current_request_id) return;
                 current_request_id = data.request_id;
-
-                var index_of_next_jump_time = binary_index_of_next_largest ( jump_history, client_requests[data.request_id].time_stamp );
-                jump_history.splice( 0, index_of_next_jump_time );
-
-                Birds.synch_with_server ( id, data, client_requests[data.request_id].time_stamp, jump_history );
+                Birds.main.sync_x_with_server ( data.x, client_requests[data.request_id].time_stamp );
             });
             Birds.on_click_start_run();
             display_splash();
@@ -500,12 +567,16 @@ var Game = (function () {
 
         start_run : function () {
             state = STATES.PLAYING;
-            Network.send.update_state({client_id: Game.get_client_id(), state: "PLAYING"});
+            Network.send.update_game_state({client_id: id, state: "PLAYING"});
             hide_splash();
             move_right();
             Birds.on_click_jump();
-
-            setInterval(client_game_loop, 200);
+            server_sync_loop_id = setInterval(server_sync_loop, 100);
+            View.display_big_score(Birds.main.get().score);
+            update_pipe_death_counter_loop_id = setInterval(function () {
+                Pipes.update_display_pipes_death_counters(map_position);
+                Pipes.draw_pipe_frame(map_position);
+            }, 1000);
         },
 
         get_client_id : function () {
@@ -513,21 +584,46 @@ var Game = (function () {
         },
 
         back_to_game_menu : function () {
+            if (state == STATES.PLAYING) {
+                hide_splash();
+                client_requests = [];
+                clearInterval(server_sync_loop_id);
+                Birds.on_click_clear();
+                server_sync_loop_id = -1;
+            } else if (state == STATES.SPECTATING) {
+                hide_spectator_controls();
+                clearInterval(update_pipe_death_counter_loop_id);
+                update_pipe_death_counter_loop_id = -1;
+            }
             state = STATES.IDLE;
+            Network.remove.client_list_returned_for_game();
             View.display_game_menu();
-            Network.send.update_state({client_id: id, state: 'IDLE'});
+            Network.send.update_game_state({client_id: id, state: 'IDLE'});
             Birds.clear();
             Pipes.clear();
             stop_bird_animation();
             stop_background();
-            hide_spectator_controls();
-            hide_splash();
-            client_requests = [];
-            Network.remove.client_list_returned_for_game();
         },
 
-        add_to_jump_history : function () {
-            jump_history.push( new Date().getTime() );
+        back_to_game_start_screen : function () {
+            View.hide_score_board(function () {
+                map_position = 0;
+                stop_bird_animation();
+                clearInterval(server_sync_loop_id);
+                server_sync_loop_id = -1;
+                clearInterval(update_pipe_death_counter_loop_id);
+                update_pipe_death_counter_loop_id = -1;
+                Birds.clear();
+                Pipes.clear();
+                map_position = 0;
+                Birds.reset_time_stamp();
+                Birds.main.initialize(id);
+                state = STATES.IDLE;
+                Network.send.update_game_state({client_id: id, state: 'IDLE'});
+                Birds.on_click_start_run();
+                display_splash();
+                animate_birds();
+            });
         },
 
         CANVAS_X_TO_MAP_POSITION_SCALE : 2.2
