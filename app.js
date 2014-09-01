@@ -18,11 +18,13 @@ var game_module = require("./custom_modules/game_module");
 
 // services
 var game_loop_service;
+var state_clean_up_service;
+var refresh_client_list_service;
+var refresh_client_temp_service;
 
 io.sockets.on('connection', function (socket) {
     socket.on('register-request', function (data) {
         var new_client = client_module.add_new(data, null);
-
         if (new_client !== false) {
             var return_package = { 
                 client_id : new_client.id, 
@@ -45,19 +47,40 @@ io.sockets.on('connection', function (socket) {
     });
 
     socket.on('update-game-state-request', function (data) {
+        if (!client_module.all[data.client_id]) {
+            socket.emit('reset-game-response');
+            return;
+        }
         client_module.all[data.client_id].update_state(data.state);
     });
 
     socket.on('update-score-request', function (data) {
+        if (!client_module.all[data.client_id]) {
+            socket.emit('reset-game-response');
+            return;
+        }
         client_module.all[data.client_id].score = data.score;
         io.sockets.emit('update-score-response', { client_id : data.client_id, score : data.score });
     });
 
     socket.on('update-bird-state-request', function (data) {
+        if (!client_module.all[data.client_id]) {
+            socket.emit('reset-game-response');
+            return;
+        }
         var client = client_module.all[data.client_id];
         client.y = data.y;
         client.y_velocity = data.y_velocity;
         client.dead = data.dead;
+        client.state_timestamp = new Date().getTime();
+    });
+
+    socket.on('refresh-state-timestamp', function (data) {
+        if (!client_module.all[data.client_id]) {
+            socket.emit('reset-game-response');
+            return;
+        }
+        client_module.all[data.client_id].state_timestamp = new Date().getTime();
     });
 
     socket.on('inc-pipe-counter-request', function (data) {
@@ -70,13 +93,17 @@ io.sockets.on('connection', function (socket) {
     });
 
     socket.on('sync-request', function (data) {
+        if (!client_module.all[data.client_id]) {
+            socket.emit('reset-game-response');
+            return;
+        }
         var client = client_module.all[data.client_id];
         socket.emit('sync-response', { request_id : data.request_id, x : client.x, y : client.y, y_velocity : client.y_velocity });
     });
 
     refresh_client_list_service = setInterval(function () {
         io.sockets.emit('client-list-response', client_module.all);
-    }, 3000);
+    }, 5000);
 
     refresh_client_temp_service = setInterval(function () {
         io.sockets.emit('clients-game-response', client_module.playing);
@@ -84,3 +111,4 @@ io.sockets.on('connection', function (socket) {
 });
 
 game_loop_service = setInterval(game_module.game_loop, 33);
+state_clean_up_service = setInterval(client_module.scan_states, 4000);

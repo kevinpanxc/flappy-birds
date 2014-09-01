@@ -17,6 +17,7 @@ function Client(username, client_id) {
     this.dead = false;
     this.score = 0;
     this.state = STATES.IDLE;
+    this.state_timestamp = new Date().getTime();
 }
 
 Client.prototype.random_string = function(length, chars) {
@@ -72,6 +73,17 @@ module.exports = {
             return new_client;
         } else {
             return false;
+        }
+    },
+    scan_states : function () {
+        for (var client_id in all) {
+            var client = all[client_id];
+            state_time_delta = new Date().getTime() - client.state_timestamp;
+            if (client.state === STATES.IDLE || client.state === STATES.SPECTATING) {
+                if (state_time_delta > 12000) delete all[client_id]; 
+            } else if (client.state === STATES.PLAYING) {
+                if (state_time_delta > 2000) client.update_state("IDLE");
+            }
         }
     },
     all : all,

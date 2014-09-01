@@ -10,6 +10,7 @@ var Network = (function () {
     var REQUEST_UPDATE_SCORE = 'update-score-request';
     var REQUEST_INC_PIPE_COUNTER = 'inc-pipe-counter-request';
     var REQUEST_PIPES_DEATH_COUNTER = 'pipes-death-counter-request';
+    var REQUEST_REFRESH_STATE_TIMESTAMP = 'refresh-state-timestamp';
 
     var RESPONSE_REGISTER_SUCCESS = 'register-success-response';
     var RESPONSE_REGISTER_FAILURE = 'register-failure-response';
@@ -19,6 +20,7 @@ var Network = (function () {
     var RESPONSE_SYNC_X = 'sync-response';
     var RESPONSE_UPDATE_SCORE = 'update-score-response';
     var RESPONSE_PIPES_DEATH_COUNTER = 'pipes-death-counter-response';
+    var RESPONSE_RESET_GAME = 'reset-game-response';
 
     return {
         initialize : function () {
@@ -56,6 +58,10 @@ var Network = (function () {
 
             request_pipes_death_counter : function ( data ) {
                 socket.emit(REQUEST_PIPES_DEATH_COUNTER, data);
+            },
+
+            refresh_state_timestamp : function (data) {
+                socket.emit(REQUEST_REFRESH_STATE_TIMESTAMP, data);
             }
         },
 
@@ -90,6 +96,10 @@ var Network = (function () {
 
             response_pipes_death_counter : function ( callback ) {
                 socket.on(RESPONSE_PIPES_DEATH_COUNTER, callback);
+            },
+
+            response_reset_game : function ( callback ) {
+                socket.on(RESPONSE_RESET_GAME, callback);
             }
         },
 

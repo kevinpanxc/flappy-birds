@@ -7,6 +7,8 @@ var View = (function () {
     var $loading_connecting_message;
     var $loading_input_username_invalid;
 
+    var $spectator_controls;
+
     var $game_menu_dialog;
 
     var $back_button;
@@ -15,6 +17,7 @@ var View = (function () {
     var $client_count;
     var cloneable_node;
 
+    var $splash;
     var $scoreboard;
     var $medal;
     var $curret_score;
@@ -122,7 +125,7 @@ var View = (function () {
 
     function display_end_game_score_board () {
         if ($scoreboard.css('display') == 'none') {
-            $big_score.empty();
+            hide_big_score();
             $back_button.hide();
             $scoreboard.show();
             $scoreboard.css({ top: '104px', opacity: 0 });
@@ -133,19 +136,27 @@ var View = (function () {
         }
     }
 
-    function hide_score_board (callback) {
-        $scoreboard.animate({ top: '104px', opacity: 0 }, 600, 'swing', function () {
+    function hide_score_board (still_in_game, callback) {
+        if (still_in_game) {
+            $scoreboard.animate({ top: '104px', opacity: 0 }, 600, 'swing', function () {
+                $scoreboard.hide();
+                callback();
+                $back_button.show();
+            });            
+        } else {
             $scoreboard.hide();
-            callback();
-            $back_button.show();
-        });
+        }
     }
 
     function display_big_score (score) {
-        $big_score.empty();
+        hide_big_score();
         score = score.toString();
         for (var i = 0; i < score.length; i++)
             $big_score.append("<img src='images/font_big_" + score.charAt(i) + ".png' alt='" + score.charAt(i) + "'>");
+    }
+
+    function hide_big_score () {
+        $big_score.empty();
     }
 
     return {
@@ -164,6 +175,8 @@ var View = (function () {
             $high_score = $("#high-score");
             $replay = $("#replay");
             $big_score = $("#big-score");
+            $splash = $("#splash");
+            $spectator_controls = $("#spectator-controls");
         },
 
         remove_loading_dialog : function () {
@@ -177,6 +190,10 @@ var View = (function () {
             $game_menu_dialog.show();
         },
 
+        hide_game_menu : function () {
+            $game_menu_dialog.hide();
+        },
+
         remove_game_menu_dialog_and_loading_blocker : function () {
             $("#loading-blocker").fadeOut("fast");
             $("#game-menu-dialogs").fadeOut("fast");
@@ -184,6 +201,7 @@ var View = (function () {
         },
 
         begin_registration : function (show_error_message) {
+            $(".loading").show();
             $loading_connecting_message.hide();
             $loading_input_username.show();
             if (show_error_message === true) $loading_input_username_invalid.show();
@@ -200,8 +218,20 @@ var View = (function () {
 
         display_big_score : display_big_score,
 
+        hide_big_score : hide_big_score,
+
+        display_spectator_controls : function () { $spectator_controls.show(); },
+
+        hide_spectator_controls : function () { $spectator_controls.hide(); },
+
+        display_splash : function () { $splash.show(); },
+
+        hide_splash : function () { $splash.hide(); },
+
         update_score_of_player : function (id, score) {
             $("#score-" + id).html(score);
-        }
+        },
+
+        hide_back_button : function () { $back_button.hide() }
     }
 })();

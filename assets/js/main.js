@@ -380,6 +380,7 @@ var Game = (function () {
     var bird_loop_id = -1;
     var server_sync_loop_id = -1;
     var update_pipe_death_counter_loop_id = -1;
+    var refresh_state_timestamp_loop = -1;
 
     var pan_right_button;
     var pan_left_button;
@@ -481,20 +482,51 @@ var Game = (function () {
         pan_left_button.onmouseout = stop_background;        
     }
 
-    function display_spectator_controls () {
-        $("#spectator-controls").show();
+    function reset_from_game_screen () {
+        client_requests = [];
+        state = STATES.IDLE;
+        map_position = 0;
+        Birds.reset_time_stamp();
+        // clear loops
+        Network.remove.client_list_returned_for_game();
+        stop_bird_animation();
+        stop_background();
+        clearInterval(update_pipe_death_counter_loop_id);
+        update_pipe_death_counter_loop_id = -1;
+        clearInterval(server_sync_loop_id);
+        server_sync_loop_id = -1;
+        // clear UI
+        Birds.on_click_clear();
+        View.hide_big_score();
+        View.hide_splash();
+        Birds.clear();
+        Pipes.clear();
     }
 
-    function hide_spectator_controls () {
-        $("#spectator-controls").hide();
+    function reset_from_spectator_screen () {
+        state = STATES.IDLE;
+        map_position = 0;
+        // clear loops
+        Network.remove.client_list_returned_for_game();
+        clearInterval(update_pipe_death_counter_loop_id);
+        update_pipe_death_counter_loop_id = -1; 
+        stop_bird_animation();
+        // clear UI
+        View.hide_spectator_controls();
+        Birds.clear();
+        Pipes.clear();
     }
 
-    function display_splash () {
-        $("#splash").show();
-    }
-
-    function hide_splash () {
-        $("#splash").hide();
+    function reset_game () {
+        id = null;
+        clearInterval(refresh_state_timestamp_loop);
+        refresh_state_timestamp_loop = -1;
+        if (state == STATES.SPECTATING) reset_from_spectator_screen();
+        else reset_from_game_screen();
+        View.hide_score_board(false);
+        View.hide_game_menu();
+        View.hide_back_button();
+        View.begin_registration();        
     }
 
     return {
@@ -507,6 +539,7 @@ var Game = (function () {
             Pipes.initialize();
             Background.draw();
             Network.on.register_success(function (data) {
+                Network.on.response_reset_game(reset_game);
                 id = data.client_id;
                 Birds.main.initialize(id);
                 Pipes.add_pipes(data.pipes); // add first twenty pipes to Pipes manager
@@ -514,6 +547,9 @@ var Game = (function () {
                 View.update_connected_clients_list(id, data.clients);
                 View.remove_loading_dialog();
                 View.display_game_menu();
+                refresh_state_timestamp_loop = setInterval(function () {
+                    Network.send.refresh_state_timestamp({ client_id : id });
+                }, 4000);
             });
 
             Network.on.register_failure(function(data) {
@@ -536,7 +572,7 @@ var Game = (function () {
             state = STATES.SPECTATING;
             map_position = 0;
             View.remove_game_menu_dialog_and_loading_blocker();
-            display_spectator_controls();
+            View.display_spectator_controls();
             Network.send.update_game_state({client_id: id, state: 'SPECTATING'});
             Network.on.client_list_returned_for_game(function (data) {
                 Birds.refresh_birds(data);
@@ -561,22 +597,22 @@ var Game = (function () {
                 Birds.main.sync_x_with_server ( data.x, client_requests[data.request_id].time_stamp );
             });
             Birds.on_click_start_run();
-            display_splash();
+            View.display_splash();
             animate_birds();
         },
 
         start_run : function () {
             state = STATES.PLAYING;
             Network.send.update_game_state({client_id: id, state: "PLAYING"});
-            hide_splash();
+            View.hide_splash();
             move_right();
             Birds.on_click_jump();
             server_sync_loop_id = setInterval(server_sync_loop, 100);
-            View.display_big_score(Birds.main.get().score);
             update_pipe_death_counter_loop_id = setInterval(function () {
                 Pipes.update_display_pipes_death_counters(map_position);
                 Pipes.draw_pipe_frame(map_position);
             }, 1000);
+            View.display_big_score(Birds.main.get().score);
         },
 
         get_client_id : function () {
@@ -584,47 +620,24 @@ var Game = (function () {
         },
 
         back_to_game_menu : function () {
-            if (state == STATES.PLAYING) {
-                hide_splash();
-                client_requests = [];
-                clearInterval(server_sync_loop_id);
-                Birds.on_click_clear();
-                server_sync_loop_id = -1;
-            } else if (state == STATES.SPECTATING) {
-                hide_spectator_controls();
-                clearInterval(update_pipe_death_counter_loop_id);
-                update_pipe_death_counter_loop_id = -1;
-            }
-            state = STATES.IDLE;
-            Network.remove.client_list_returned_for_game();
+            if (state == STATES.SPECTATING) reset_from_spectator_screen();
+            else reset_from_game_screen();
             View.display_game_menu();
             Network.send.update_game_state({client_id: id, state: 'IDLE'});
-            Birds.clear();
-            Pipes.clear();
-            stop_bird_animation();
-            stop_background();
         },
 
         back_to_game_start_screen : function () {
-            View.hide_score_board(function () {
-                map_position = 0;
-                stop_bird_animation();
-                clearInterval(server_sync_loop_id);
-                server_sync_loop_id = -1;
-                clearInterval(update_pipe_death_counter_loop_id);
-                update_pipe_death_counter_loop_id = -1;
-                Birds.clear();
-                Pipes.clear();
-                map_position = 0;
-                Birds.reset_time_stamp();
+            View.hide_score_board(true, function () {
+                reset_from_game_screen();
                 Birds.main.initialize(id);
-                state = STATES.IDLE;
                 Network.send.update_game_state({client_id: id, state: 'IDLE'});
                 Birds.on_click_start_run();
-                display_splash();
+                View.display_splash();
                 animate_birds();
             });
         },
+
+        reset_game : reset_game,
 
         CANVAS_X_TO_MAP_POSITION_SCALE : 2.2
     }
