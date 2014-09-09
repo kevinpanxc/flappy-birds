@@ -3,6 +3,8 @@ var express = require("express");
 var app = express();
 var port = Number(process.env.PORT || 3700);
 
+var counter = 0;
+
 app.use(express.static(__dirname + '/assets'));
 app.get('/', function(request, response) {
     response.sendfile('./assets/index.html');
@@ -100,15 +102,15 @@ io.sockets.on('connection', function (socket) {
         var client = client_module.all[data.client_id];
         socket.emit('sync-response', { request_id : data.request_id, x : client.x, y : client.y, y_velocity : client.y_velocity });
     });
-
-    refresh_client_list_service = setInterval(function () {
-        io.sockets.emit('client-list-response', client_module.all);
-    }, 5000);
-
-    refresh_client_temp_service = setInterval(function () {
-        io.sockets.emit('clients-game-response', client_module.playing);
-    }, 100);
 });
+
+refresh_client_list_service = setInterval(function () {
+    io.sockets.emit('client-list-response', client_module.all);
+}, 5000);
+
+refresh_client_temp_service = setInterval(function () {
+    io.sockets.emit('clients-game-response', client_module.playing);
+}, 100);
 
 game_loop_service = setInterval(game_module.game_loop, 33);
 state_clean_up_service = setInterval(client_module.scan_states, 4000);

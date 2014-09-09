@@ -22,7 +22,8 @@ var View = (function () {
     var $medal;
     var $curret_score;
     var $high_score;
-    var $reply_button;
+    var $replay;
+    var $replay_button;
 
     var $big_score;
 
@@ -128,6 +129,10 @@ var View = (function () {
             hide_big_score();
             $back_button.hide();
             $scoreboard.show();
+            $replay_button.click(function () {
+                $(this).off("click");
+                Game.back_to_game_start_screen();
+            });
             $scoreboard.css({ top: '104px', opacity: 0 });
             $replay.css({ top: '245px', opacity: 0 });
             $scoreboard.animate({ top: '64px', opacity: 1 }, 600, 'swing', function () {
@@ -174,6 +179,7 @@ var View = (function () {
             $current_score = $("#current-score");
             $high_score = $("#high-score");
             $replay = $("#replay");
+            $replay_button = $("#replay > img");
             $big_score = $("#big-score");
             $splash = $("#splash");
             $spectator_controls = $("#spectator-controls");
