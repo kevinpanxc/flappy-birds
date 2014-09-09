@@ -2,6 +2,7 @@ function OtherPlayer ( x, y ) {
     this.x = null;
     this.y = null;
     this.has_info = false;
+    this.paused = false;
     this.goal_time_stamp = null;
     this.current_time_stamp = null;
     this.increment_x = null;
@@ -39,7 +40,9 @@ OtherPlayer.prototype.advance = function () {
 
             this.x = s1.x;
             this.y = s1.y;
-        } else if (this.x_increment == null) {
+        } else if (this.paused) {
+            this.paused = false;
+
             var s1 = this.states[this.next_index - 1];
             var s2 = this.states[this.next_index];
 
@@ -56,7 +59,7 @@ OtherPlayer.prototype.advance = function () {
                 this.y = this.states[this.next_index].y;
                 this.next_index++;
                 if (this.next_index >= this.states.length) {
-                    this.x_increment = null;
+                    this.paused = true;
                     this.has_info = false;
                     return;
                 } else {
