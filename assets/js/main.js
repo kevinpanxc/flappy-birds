@@ -26,6 +26,23 @@ OtherPlayer.prototype.push_state = function (x, y) {
     });
 }
 
+OtherPlayer.prototype.trim_data = function () {
+    if (this.states.length > 15) {
+        var number_of_removed_elements = this.states.length - 5;
+        this.states.splice(0, number_of_removed_elements);
+        this.next_index -= number_of_removed_elements;
+    }
+}
+
+OtherPlayer.prototype.set_new_increments = function () {
+    var s1 = this.states[this.next_index - 1];
+    var s2 = this.states[this.next_index];
+
+    this.goal_time_stamp += s2.time_stamp - s1.time_stamp;
+    this.x_increment = ( s2.x - s1.x ) / ((s2.time_stamp - s1.time_stamp) / 33); 
+    this.y_increment = ( s2.y - s1.y ) / ((s2.time_stamp - s1.time_stamp) / 33);      
+}
+
 OtherPlayer.prototype.advance = function () {
     if (this.has_info) {
         if (this.current_time_stamp == null) {
@@ -42,13 +59,7 @@ OtherPlayer.prototype.advance = function () {
             this.y = s1.y;
         } else if (this.paused) {
             this.paused = false;
-
-            var s1 = this.states[this.next_index - 1];
-            var s2 = this.states[this.next_index];
-
-            this.goal_time_stamp += s2.time_stamp - s1.time_stamp;
-            this.x_increment = ( s2.x - s1.x ) / ((s2.time_stamp - s1.time_stamp) / 33); 
-            this.y_increment = ( s2.y - s1.y ) / ((s2.time_stamp - s1.time_stamp) / 33);            
+            this.set_new_increments();           
         } else {
             this.x += this.x_increment;
             this.y += this.y_increment;
@@ -57,19 +68,12 @@ OtherPlayer.prototype.advance = function () {
             if (this.current_time_stamp >= this.goal_time_stamp) {
                 this.x = this.states[this.next_index].x;
                 this.y = this.states[this.next_index].y;
+                this.trim_data();
                 this.next_index++;
                 if (this.next_index >= this.states.length) {
                     this.paused = true;
                     this.has_info = false;
-                    return;
-                } else {
-                    var s1 = this.states[this.next_index - 1];
-                    var s2 = this.states[this.next_index];
-
-                    this.goal_time_stamp += s2.time_stamp - s1.time_stamp;
-                    this.x_increment = ( s2.x - s1.x ) / ((s2.time_stamp - s1.time_stamp) / 33); 
-                    this.y_increment = ( s2.y - s1.y ) / ((s2.time_stamp - s1.time_stamp) / 33);
-                }
+                } else this.set_new_increments();
             }
         }
     }
