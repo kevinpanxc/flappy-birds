@@ -183,6 +183,14 @@ var View = (function () {
             $big_score = $("#big-score");
             $splash = $("#splash");
             $spectator_controls = $("#spectator-controls");
+
+            $("#about-button").click(function () {
+                $("#about").toggle("fast", function () {
+                    $('html, body').animate({
+                        scrollTop: $("#about").offset().top
+                    }, 2000);
+                });
+            });
         },
 
         remove_loading_dialog : function () {
