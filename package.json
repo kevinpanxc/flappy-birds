@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "express": "3.5.0",
-    "socket.io": "*",
+    "socket.io": "1.1.0",
     "moment": "*"
   }
 }
